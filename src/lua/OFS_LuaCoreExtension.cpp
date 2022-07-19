@@ -1,5 +1,6 @@
 #include "OFS_LuaCoreExtension.h"
 #include "OFS_LuaExtensions.h"
+#include "OFS_Util.h"
 
 #include <filesystem>
 
@@ -20,9 +21,6 @@ Spline.PointEveryMs = 100
 
 function init()
     -- this runs once at when loading the extension
-    ofs.Bind("jitter", "Adds jitter to selection.")
-    ofs.Bind("random_noise", "Generates a random script.")
-    ofs.Bind("spline_smooth", "Adds spline smoothing to selection.")
     print("initialized")
 end
 
@@ -52,7 +50,7 @@ function gui()
     Random.MinStrokeDuration = ofs.Input("Min duration", Random.MinStrokeDuration)
     Random.MaxStrokeDuration = ofs.Input("Max duration", Random.MaxStrokeDuration)
     if ofs.Button("Add random noise") then
-        random_noise()
+        binding.random_noise()
     end
 
     if ofs.Button("Select all") then
@@ -68,11 +66,11 @@ function gui()
     Spline.PointEveryMs, splineChanged = ofs.Slider("Point per ms", Spline.PointEveryMs, 20, 500)
     if splineChanged then
         ofs.Undo()
-        spline_smooth()
+        binding.spline_smooth()
     end
 end
 
-function spline_smooth()
+function binding.spline_smooth()
     local catmullRom = function(v1, v2, v3, v4, s)
         s2 = s*s
         s3 = s*s*s
@@ -87,7 +85,7 @@ function spline_smooth()
     local script = ofs.Script(ofs.ActiveIdx())
     local actionCount = #script.actions
 
-    if not ofs.HasSelection(script) then
+    if not script:hasSelection() then
         return
     end
 
@@ -108,33 +106,35 @@ function spline_smooth()
         -- since lua doesn't have a continue,
         -- we use a goto + a label at the bottom of the loop
         if not action2.selected or not action3.selected then goto continue end
-    
+
+
         local startTime = action2.at
         local endTime = action3.at
         local duration = endTime - startTime;
     
-        pointCount = duration/Spline.PointEveryMs;
-    
-        for i=1, pointCount, 1 do
-            s = (i*Spline.PointEveryMs) / duration
-            time_ms = math.floor(action2.at + (i*Spline.PointEveryMs))
+        local pointEverySecond = Spline.PointEveryMs / 1000.0
+
+        pointCount = duration/pointEverySecond
+   
+        for i=1, pointCount-1, 1 do
+            s = (i*pointEverySecond) / duration
+            time_ms = action2.at + (i*pointEverySecond)
             spline_pos = catmullRom(action1.pos, action2.pos, action3.pos, action4.pos, s)
             spline_pos = clamp(spline_pos, 0, 100)
-            --ofs.AddAction(script, time_ms, spline_pos)
             table.insert( smoothedActions, {at=time_ms, pos=spline_pos} )
         end
         ::continue::
     end
 
     for idx, action in ipairs(smoothedActions) do
-        ofs.AddAction(script, action.at, action.pos)
+        script.actions:add(Action.new(action.at, action.pos))
     end
-    ofs.Commit(script)
+    script:commit()
 end
 
-function random_noise()
+function binding.random_noise()
     local script = ofs.Script(ofs.ActiveIdx())
-    ofs.ClearScript(script)
+    script.actions:clear()
 
     local LastTimeMs = 0
     local LastPos = 0
@@ -142,7 +142,7 @@ function random_noise()
 
     local goingUp = true
     while LastTimeMs < TotalTimeMs do
-        ofs.AddAction(script, LastTimeMs, LastPos)
+        script.actions:add(Action.new(LastTimeMs/1000.0, LastPos))
        
         if goingUp then
             LastPos = LastPos + math.random(Random.MinStrokeLen, Random.MaxStrokeLen)
@@ -154,7 +154,7 @@ function random_noise()
         LastTimeMs = LastTimeMs + math.random(Random.MinStrokeDuration, Random.MaxStrokeDuration)
     end
 
-    ofs.Commit(script)
+    script:commit()
 end
 
 function select_all() 
@@ -162,7 +162,7 @@ function select_all()
     for idx, action in ipairs(script.actions) do
         action.selected = true
     end
-    ofs.Commit(script)
+    script:commit()
 end
 
 function select_none()
@@ -170,13 +170,13 @@ function select_none()
     for idx, action in ipairs(script.actions) do
         action.selected = false
     end
-    ofs.Commit(script)
+    script:commit()
 end
 
-function jitter()
+function binding.jitter()
     local script = ofs.Script(ofs.ActiveIdx())
 
-    if not ofs.HasSelection(script) then
+    if not script:hasSelection() then
         return
     end
     
@@ -197,7 +197,7 @@ function jitter()
             action.pos = action.pos + pos_jitter_value
         end
     end
-    ofs.Commit(script)
+    script:commit()
 end
 )";
 
@@ -210,7 +210,7 @@ void OFS_CoreExtension::setup() noexcept
     #else
     if (!std::filesystem::exists(path, ec)) {
     #endif
-        std::filesystem::create_directories(path);
+        Util::CreateDirectories(path);
         path /= "main.lua";
         auto pString = path.u8string();
         auto handle = Util::OpenFile(pString.c_str(), "wb", pString.size());

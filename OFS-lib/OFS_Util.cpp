@@ -167,7 +167,8 @@ void Util::OpenFileDialog(const std::string& title, const std::string& path, Fil
 	};
 	auto thread = [](void* ctx) {
 		auto data = (FileDialogThreadData*)ctx;
-		if (!std::filesystem::exists(data->path)) {
+
+		if (!Util::DirectoryExists(data->path)) {
 			data->path = "";
 		}
 
@@ -184,6 +185,8 @@ void Util::OpenFileDialog(const std::string& title, const std::string& path, Fil
 			wc_str.push_back(wfilters.back().c_str());
 		}
 		auto result = tinyfd_utf16to8(tinyfd_openFileDialogW(wtitle.c_str(), wpath.c_str(), wc_str.size(), wc_str.data(), wfilterText.empty() ? NULL : wfilterText.c_str(), data->multiple));
+#elif __APPLE__
+		auto result = tinyfd_openFileDialog(data->title.c_str(), data->path.c_str(), 0, nullptr, data->filterText.empty() ? NULL : data->filterText.c_str(), data->multiple);
 #else
 		auto result = tinyfd_openFileDialog(data->title.c_str(), data->path.c_str(), data->filters.size(), data->filters.data(), data->filterText.empty() ? NULL : data->filterText.c_str(), data->multiple);
 #endif
@@ -245,15 +248,10 @@ void Util::SaveFileDialog(const std::string& title, const std::string& path, Fil
 		auto data = (SaveFileDialogThreadData*)ctx;
 
 		auto dialogPath = Util::PathFromString(data->path);
-		if (std::filesystem::is_directory(dialogPath) && !std::filesystem::exists(dialogPath)) {
+		dialogPath.replace_filename("");
+		std::error_code ec;
+		if (!std::filesystem::exists(dialogPath, ec)) {
 			data->path = "";
-		}
-		else {
-			auto directory = dialogPath;
-			directory.replace_filename("");
-			if (!std::filesystem::exists(directory)) {
-				data->path = "";
-			}
 		}
 
 		SanitizeString(data->path);
@@ -293,16 +291,9 @@ void Util::OpenDirectoryDialog(const std::string& title, const std::string& path
 	auto thread = [](void* ctx) -> int32_t {
 		auto data = (OpenDirectoryDialogThreadData*)ctx;
 
-		auto dialogPath = Util::PathFromString(data->path);
-		if (std::filesystem::is_directory(dialogPath) && !std::filesystem::exists(dialogPath)) {
+		if(!Util::DirectoryExists(data->path)) 
+		{
 			data->path = "";
-		}
-		else {
-			auto directory = dialogPath;
-			directory.replace_filename("");
-			if (!std::filesystem::exists(directory)) {
-				data->path = "";
-			}
 		}
 
 		auto result = tinyfd_selectFolderDialog(data->title.c_str(), data->path.c_str());
@@ -424,26 +415,14 @@ std::wstring Util::Utf8ToUtf16(const std::string& str) noexcept
 
 std::filesystem::path Util::PathFromString(const std::string& str) noexcept
 {
-	// this is not very efficient but avoids encoding issues...
-	std::filesystem::path result;
-#if WIN32
-	auto wideString = Util::Utf8ToUtf16(str);
-	result = std::filesystem::path(wideString);
-#else
-	result = std::filesystem::path(str);
-#endif
+	auto result = std::filesystem::u8path(str);
 	result.make_preferred();
 	return result;
 }
 
 void Util::ConcatPathSafe(std::filesystem::path& path, const std::string& element) noexcept
 {
-	// I don't know if this is safe lol
-#if WIN32
-	path /= Util::Utf8ToUtf16(element);
-#else
-	path /= element;
-#endif
+	path /= Util::PathFromString(element);
 }
 
 bool Util::SavePNG(const std::string& path, void* buffer, int32_t width, int32_t height, int32_t channels, bool flipVertical) noexcept

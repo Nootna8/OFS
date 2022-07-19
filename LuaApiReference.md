@@ -1,5 +1,8 @@
 # Extension API Reference
 
+**THIS IS NOW OLD VERSION AND ONLY APPLIES TO VERSION 1.4.4**
+**A NEW DOCUMENTATION CAN BE FOUND HERE https://github.com/OpenFunscripter/API**
+
 Here I'm trying to document all the API calls of the new Extension API.
 
 - [Extension API Reference](#extension-api-reference)
@@ -225,6 +228,7 @@ end
 | `ofs.IsProcessAlive(process)`| ProcessHandle | bool | Returns if the process is still running. |
 | `ofs.JoinProcess(process)`| ProcessHandle | Number | Waits for the process to finish.<br/> Returns the exit code. |
 | `ofs.DetachProcess(process)`| ProcessHandle | nil | Detaches the process.<br/>The process handle becomes inactive. |
+| `ofs.KillProcess(process)`| ProcessHandle | nil | Kills the process. |
 
 ### Example usage
 ```Lua

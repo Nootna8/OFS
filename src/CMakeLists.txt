@@ -21,7 +21,13 @@ set(OPEN_FUNSCRIPTER_SOURCES
   "gl/OFS_GPU.cpp"
 
   "lua/OFS_LuaExtensions.cpp"
+  "lua/OFS_LuaExtension.cpp"
   "lua/OFS_LuaCoreExtension.cpp"
+  "lua/OFS_LuaExtensionAPI.cpp"
+  "lua/api/OFS_LuaPlayerAPI.cpp"
+  "lua/api/OFS_LuaImGuiAPI.cpp"
+  "lua/api/OFS_LuaScriptAPI.cpp"
+  "lua/api/OFS_LuaProcessAPI.cpp"
 )
 
 if(WIN32)
@@ -39,13 +45,20 @@ endif()
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR})
 
 # copy data directory
-add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
-					COMMAND ${CMAKE_COMMAND} -E copy_directory
-					"${CMAKE_SOURCE_DIR}/data/" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/data")
+if(APPLE)
+	add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+						COMMAND ${CMAKE_COMMAND} -E copy_directory
+						"${CMAKE_SOURCE_DIR}/data/" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/../Resources/data")
+else()
+	add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
+						COMMAND ${CMAKE_COMMAND} -E copy_directory
+						"${CMAKE_SOURCE_DIR}/data/" "$<TARGET_FILE_DIR:${PROJECT_NAME}>/data")
+endif()
 
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
   lua
+  sol2
   OFS_lib
 )
 

@@ -2,6 +2,7 @@
 
 #include "imgui.h"
 #include "OFS_Util.h"
+#include "OFS_Localization.h"
 
 namespace OFS {
 	// ExampleAppLog taken from "imgui_demo.cpp"
@@ -55,24 +56,24 @@ namespace OFS {
 			}
 
 			// Options menu
-			if (ImGui::BeginPopup("Options")) {
-				ImGui::Checkbox("Auto-scroll", &AutoScroll);
+			if (ImGui::BeginPopup(TR_ID("OPTIONS", Tr::OPTIONS))) {
+				ImGui::Checkbox(TR(AUTO_SCROLL), &AutoScroll);
 				ImGui::EndPopup();
 			}
 
 			// Main window
-			if (ImGui::Button("Options"))
-				ImGui::OpenPopup("Options");
+			if (ImGui::Button(TR(OPTIONS)))
+				ImGui::OpenPopup(TR_ID("OPTIONS", Tr::OPTIONS));
 			ImGui::SameLine();
-			bool clear = ImGui::Button("Clear");
+			bool clear = ImGui::Button(TR(CLEAR));
 			ImGui::SameLine();
-			bool copy = ImGui::Button("Copy");
+			bool copy = ImGui::Button(TR(COPY));
 			ImGui::SameLine();
-			Filter.Draw("Filter", -100.0f);
+			Filter.Draw(TR(FILTER), -100.0f);
 
-			ImGui::Text("Used: %s", Util::FormatBytes(LogSizeBytes()));
+			ImGui::Text("%s: %s", TR(USED), Util::FormatBytes(LogSizeBytes()));
 			ImGui::SameLine();
-			ImGui::Text("Allocated: %s", Util::FormatBytes(AllocatedSizeBytes()));
+			ImGui::Text("%s: %s", TR(ALLOCATED), Util::FormatBytes(AllocatedSizeBytes()));
 			ImGui::Separator();
 			ImGui::BeginChild("scrolling", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
@@ -117,7 +118,6 @@ namespace OFS {
 
 	// same as ImGui::Image except it has an id
 	void ImageWithId(ImGuiID id, ImTextureID user_texture_id, const ImVec2& size, const ImVec2& uv0 = ImVec2(0, 0), const ImVec2& uv1 = ImVec2(1, 1), const ImVec4& tint_col = ImVec4(1, 1, 1, 1), const ImVec4& border_col = ImVec4(0, 0, 0, 0)) noexcept;
-	bool GamepadContextMenu() noexcept;
     bool Spinner(const char* label, float radius, int thickness, const ImU32& color) noexcept;
 
 	bool BoundedSliderInt(const char* label, int* v, int v_min, int v_max, int local_min, int local_max, const char* format = "%d", ImGuiSliderFlags flags = 0) noexcept;

@@ -1,7 +1,7 @@
 #pragma once
 #include "OFS_Reflection.h"
+#include "OFS_Localization.h"
 #include "OFS_Util.h"
-#include "SDL.h"
 
 #include "EventSystem.h"
 
@@ -11,11 +11,12 @@
 #include <sstream>
 #include <unordered_map>
 
+#include "SDL_events.h"
+
 class KeybindingEvents
 {
 public:
 	static int32_t ControllerButtonRepeat;
-
 	static void RegisterEvents() noexcept;
 };
 
@@ -62,27 +63,32 @@ struct ControllerBinding {
 
 struct Binding {
 	std::string identifier;
-	std::string description;
-	bool ignore_repeats = true;
+	Tr displayName;
 	Keybinding key;
 	ControllerBinding controller;
 	BindingAction action;
 	void* userdata = nullptr;
+	bool ignoreRepeats = true;
+
 	std::string dynamicHandlerId = "";
+	std::string dynamicName = "";
 
 	Binding() noexcept {}
 
-	Binding(const std::string& id, const std::string& description, bool ignore_repeats, BindingAction action) noexcept
-		: identifier(id), description(description), ignore_repeats(ignore_repeats), action(action) {}
+	Binding(const std::string& id, Tr displayName, bool ignoreRepeats, BindingAction action) noexcept
+		: identifier(id), displayName(displayName), ignoreRepeats(ignoreRepeats), action(action) {}
+	
+	Binding(const std::string& id, const std::string dynamicName, bool ignoreRepeats, BindingAction action) noexcept
+		: identifier(id), dynamicName(dynamicName), ignoreRepeats(ignoreRepeats), action(action), displayName(Tr::INVALID_TR) {}
 
 	template<class Archive>
 	inline void reflect(Archive& ar) {
 		OFS_REFLECT(identifier, ar);
-		OFS_REFLECT(description, ar);
 		OFS_REFLECT(key, ar);
 		OFS_REFLECT(controller, ar);
-		OFS_REFLECT(ignore_repeats, ar);
+		OFS_REFLECT(ignoreRepeats, ar);
 		OFS_REFLECT(dynamicHandlerId, ar);
+		OFS_REFLECT(dynamicName, ar);
 	}
 
 	inline void execute() noexcept {
@@ -90,11 +96,29 @@ struct Binding {
 			action(userdata == nullptr ? this : userdata);
 		}
 	}
+
+	inline const char* name() const noexcept
+	{
+		if(dynamicHandlerId.empty()) {
+			return TRD(displayName);
+		}
+		else {
+			return dynamicName.c_str();
+		}
+	}
 };
 
 struct KeybindingGroup {
 	std::string name;
+	Tr displayName;
 	std::vector<Binding> bindings;
+
+	KeybindingGroup() noexcept
+		: name(std::string()), displayName(Tr::INVALID_TR)
+	{}
+	KeybindingGroup(const char* name_id, Tr displayName) noexcept
+		: name(name_id), displayName(displayName)
+	{}
 
 	template<class Archive>
 	inline void reflect(Archive& ar) {
@@ -107,19 +131,18 @@ struct KeybindingGroup {
 struct PassiveBinding
 {
 	std::string identifier;
-	std::string description;
+	Tr displayName;
 	Keybinding key;
 	bool active = true;
 
 	PassiveBinding() noexcept {}
 
-	PassiveBinding(const std::string& id, const std::string& description, bool active = true) noexcept
-		: identifier(id), description(description), active(active) {}
+	PassiveBinding(const std::string& id, Tr displayName, bool active = true) noexcept
+		: identifier(id), displayName(displayName), active(active) {}
 
 	template<class Archive>
 	inline void reflect(Archive& ar) {
 		OFS_REFLECT(identifier, ar);
-		OFS_REFLECT(description, ar);
 		OFS_REFLECT(key, ar);
 		OFS_REFLECT(active, ar);
 	}
@@ -128,7 +151,15 @@ struct PassiveBinding
 struct PassiveBindingGroup
 {
 	std::string name;
+	Tr displayName;
 	std::vector<PassiveBinding> bindings;
+
+	PassiveBindingGroup() noexcept
+		: name(std::string()), displayName(Tr::INVALID_TR)
+	{}
+	PassiveBindingGroup(const char* name_id, Tr displayName) noexcept
+		: name(name_id), displayName(displayName)
+	{}
 
 	template<class Archive>
 	inline void reflect(Archive& ar) {
@@ -137,13 +168,13 @@ struct PassiveBindingGroup
 	}
 };
 
-constexpr const char* CurrentKeybindingsVersion = "1";
+constexpr const char* CurrentKeybindingsVersion = "2";
 struct Keybindings {
 	std::string config_version = CurrentKeybindingsVersion;
 	std::vector<KeybindingGroup> groups;
 	std::vector<PassiveBindingGroup> passiveGroups;
 
-	KeybindingGroup DynamicBindings{"Dynamic"};
+	KeybindingGroup DynamicBindings{ "Dynamic", Tr::DYNAMIC_BINDING_GROUP };
 
 	template<class Archive>
 	inline void reflect(Archive& ar) {
@@ -162,7 +193,7 @@ struct Keybindings {
 class KeybindingSystem 
 {
 private:
-	std::stringstream currentlyHeldKeys;
+	std::string changeModalText;
 	Binding* currentlyChanging = nullptr;
 	PassiveBinding* currentlyChangingPassive = nullptr;
 	uint32_t passiveChangingStartTimer = 0;
@@ -175,8 +206,8 @@ private:
 
 	Keybindings ActiveBindings;
 	std::unordered_map<std::string, DynamicBindingHandler> dynamicHandlers;
-	std::unordered_map<std::string, std::string> bindingStringLUT;
-	std::unordered_map<std::string, PassiveBinding> passiveBindingLUT;
+	std::unordered_map<std::string, std::string> bindingStrings;
+	std::unordered_map<std::string, PassiveBinding> passiveBindings;
 	std::string keybindingPath;
 
 	void addKeyString(const char* name) noexcept;
@@ -184,7 +215,6 @@ private:
 	std::string loadKeyString(SDL_Keycode key, int mod) noexcept;
 	
 	void ProcessControllerBindings(SDL_Event& ev, bool repeat) noexcept;
-
 	void handleBindingModification(SDL_Event& ev, uint16_t modstate) noexcept;
 	void handlePassiveBindingModification(SDL_Event& ev, uint16_t modstate) noexcept;
 
@@ -196,6 +226,8 @@ private:
 
 	void addPassiveBindingGroup(PassiveBindingGroup& group, bool& save) noexcept;
 	void passiveBindingTab(bool& save) noexcept;
+
+	void changeModals(bool& save) noexcept;
 public:
 	bool ShowWindow = false;
 

@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "SDL_rwops.h"
 #include "SDL_filesystem.h"
+#include "SDL_thread.h"
 #include "nlohmann/json.hpp"
 
 #include <memory>
@@ -272,7 +273,7 @@ public:
 	inline static bool DirectoryExists(const std::string& dir) noexcept
 	{
 		std::error_code ec;
-		bool exists = std::filesystem::exists(dir, ec);
+		bool exists = std::filesystem::exists(Util::PathFromString(dir), ec);
 		return exists && !ec;
 	}
 
@@ -364,7 +365,7 @@ public:
 	static std::string Resource(const std::string& path) noexcept;
 
 	static std::string Prefpath(const std::string& path = std::string()) noexcept {
-		static const char* cachedPref = SDL_GetPrefPath("OFS", "OFS_data");
+		static const char* cachedPref = SDL_GetPrefPath("OFS", "OFS2_data");
 		static std::filesystem::path prefPath = Util::PathFromString(cachedPref);
 		if (!path.empty()) {
 			std::filesystem::path rel = Util::PathFromString(path);
@@ -439,4 +440,13 @@ public:
 	}
 
 	static uint32_t Hash(const char* data, size_t size = 0, int32_t seed = 0x42069) noexcept;
+
+
+	inline static bool InMainThread() noexcept
+	{
+		static auto Main = SDL_ThreadID();
+		return SDL_ThreadID() == Main;
+	}
 };
+
+#define FMT(fmt, ...) Util::Format(fmt, __VA_ARGS__)

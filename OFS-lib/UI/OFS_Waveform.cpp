@@ -17,6 +17,9 @@ bool OFS_Waveform::LoadFlac(const std::string& output) noexcept
 	std::vector<drflac_int16> ChunkSamples; ChunkSamples.resize(48000);
 	constexpr int SamplesPerLine = 60; 
 
+	float minSample = 0.f;
+	float maxSample = 0.f;
+
 	uint32_t sampleCount = 0;
 	float avgSample = 0.f;
 	Samples.clear();
@@ -30,12 +33,25 @@ bool OFS_Waveform::LoadFlac(const std::string& output) noexcept
 				avgSample += floatSample;
 			}
 			avgSample /= (float)SamplesPerLine;
+			minSample = Util::Min(minSample, avgSample);
+			maxSample = Util::Max(maxSample, avgSample);
 			Samples.emplace_back(avgSample);
 		}
 	}
 	drflac_close(flac);
-
 	Samples.shrink_to_fit();
+
+	if(std::abs(minSample) > std::abs(maxSample)) {
+		maxSample = std::abs(minSample);
+	}
+	else {
+		minSample = -maxSample;
+	}
+
+	for(auto& sample : Samples) {
+		sample = Util::MapRange(sample, minSample, maxSample, -1.f, 1.f);
+	}
+
 	return true;
 }
 
@@ -43,10 +59,12 @@ bool OFS_Waveform::GenerateAndLoadFlac(const std::string& ffmpegPath, const std:
 {
 	generating = true;
 
-	std::array<const char*, 9> args =
+	std::array<const char*, 11> args =
 	{
 		ffmpegPath.c_str(),
 		"-y",
+		"-loglevel",
+		"quiet",
 		"-i", videoPath.c_str(),
 		"-vn",
 		"-ac", "1",
@@ -58,8 +76,22 @@ bool OFS_Waveform::GenerateAndLoadFlac(const std::string& ffmpegPath, const std:
 		generating = false; 
 		return false; 
 	}
+
+	if(proc.stdout_file) 
+	{
+		fclose(proc.stdout_file);
+		proc.stdout_file = nullptr;
+	}
+	
+	if(proc.stderr_file) 
+	{
+		fclose(proc.stderr_file);
+		proc.stderr_file = nullptr;
+	}
+
 	int return_code;
 	subprocess_join(&proc, &return_code);
+	subprocess_destroy(&proc);
 
 	if (!LoadFlac(output)) {
 		generating = false;

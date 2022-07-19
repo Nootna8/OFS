@@ -19,6 +19,7 @@
 #include "OFS_BlockingTask.h"
 #include "OFS_DynamicFontAtlas.h"
 #include "OFS_LuaExtensions.h"
+#include "OFS_Localization.h"
 
 #include <memory>
 #include <chrono>
@@ -46,7 +47,7 @@ private:
 	bool DebugMetrics = false;
 	bool ShowAbout = false;
 	
-	std::vector<FunscriptAction> CopiedSelection;
+	FunscriptArray CopiedSelection;
 	std::chrono::steady_clock::time_point lastBackup;
 
 	char tmpBuf[2][32];
@@ -134,7 +135,7 @@ public:
 	~OpenFunscripter();
 
 	KeybindingSystem keybinds;
-	ScriptTimeline scriptPositions;
+	ScriptTimeline scriptTimeline;
 	OFS_VideoplayerControls playerControls;
 	ScriptSimulator simulator;
 	OFS_BlockingTask blockingTask;
@@ -182,7 +183,7 @@ public:
 	static inline Funscript& script() noexcept { return *OpenFunscripter::ptr->ActiveFunscript(); }
 	static void SetCursorType(ImGuiMouseCursor id) noexcept;
 
-	inline const std::vector<FunscriptAction>& FunscriptClipboard() const { return CopiedSelection; }
+	inline const FunscriptArray& FunscriptClipboard() const { return CopiedSelection; }
 
 	inline void LoadOverrideFont(const std::string& font) noexcept { 
 		OFS_DynFontAtlas::FontOverride = font;
@@ -199,8 +200,8 @@ template<typename OnCloseAction>
 inline void OpenFunscripter::closeWithoutSavingDialog(OnCloseAction&& action) noexcept
 {
 	if (LoadedProject->HasUnsavedEdits()) {
-		Util::YesNoCancelDialog("Close without saving?",
-			"The current project has unsaved changes do you want to close it without saving?",
+		Util::YesNoCancelDialog(TR(CLOSE_WITHOUT_SAVING),
+			TR(CLOSE_WITHOUT_SAVING_MSG),
 			[this, action](Util::YesNoCancel result) {
 				if (result == Util::YesNoCancel::Yes) {
 					closeProject(true);

@@ -2,6 +2,7 @@
 #include "OFS_ScriptingMode.h"
 #include "OFS_Util.h"
 #include "OFS_Profiling.h"
+#include "OFS_Localization.h"
 
 #include "imgui.h"
 #include "imgui_internal.h"
@@ -37,49 +38,102 @@ void ScriptingMode::setup()
     setOverlay(ScriptingOverlayModes::FRAME);
 }
 
+inline static const char* ScriptingModeToString(ScriptingModeEnum mode) noexcept
+{
+    switch (mode)
+    {
+        case ScriptingModeEnum::DEFAULT_MODE: return TR(DEFAULT_MODE);
+        case ScriptingModeEnum::ALTERNATING: return TR(ALTERNATING_MODE);
+        case ScriptingModeEnum::DYNAMIC_INJECTION: return TR(DYNAMIC_INJECTION_MODE);
+        case ScriptingModeEnum::RECORDING: return TR(RECORDING_MODE);
+    }
+    return "";
+}
+
+inline static const char* OverlayModeToString(ScriptingOverlayModes mode) noexcept
+{
+    switch (mode)
+    {
+        case ScriptingOverlayModes::FRAME: return TR(FRAME_OVERLAY);
+        case ScriptingOverlayModes::TEMPO: return TR(TEMPO_OVERLAY);
+        case ScriptingOverlayModes::EMPTY: return TR(EMPTY_OVERLAY);
+    }
+    return "";
+}
+
+
 void ScriptingMode::DrawScriptingMode(bool* open) noexcept
 {
     OFS_PROFILE(__FUNCTION__);
     auto app = OpenFunscripter::ptr;
-	ImGui::Begin(ScriptingModeId, open);
+	ImGui::Begin(TR_ID(WindowId, Tr::MODE), open);
     ImGui::PushItemWidth(-1);
-    // ATTENTION: order needs to be the same as the enum
-    if (ImGui::Combo("##Mode", (int*)&activeMode, 
-        "Default\0"
-        "Alternating\0"
-        "Dynamic injection\0"
-        "Recording\0"
-		"Tracking\0"
-        "\0")) {
-        setMode(activeMode);
+
+    if(ImGui::BeginCombo("##Mode", ScriptingModeToString(activeMode), ImGuiComboFlags_None))
+    {
+        if(ImGui::Selectable(TR_ID("DEFAULT", Tr::DEFAULT_MODE), activeMode == ScriptingModeEnum::DEFAULT_MODE))
+        {
+            setMode(ScriptingModeEnum::DEFAULT_MODE);
+        }
+        if(ImGui::Selectable(TR_ID("ALTERNATING", Tr::ALTERNATING_MODE), activeMode == ScriptingModeEnum::ALTERNATING))
+        {
+            setMode(ScriptingModeEnum::ALTERNATING);
+        }
+        if(ImGui::Selectable(TR_ID("DYNAMIC_INJECTION", Tr::DYNAMIC_INJECTION_MODE), activeMode == ScriptingModeEnum::DYNAMIC_INJECTION))
+        {
+            setMode(ScriptingModeEnum::DYNAMIC_INJECTION);
+        }
+        if(ImGui::Selectable(TR_ID("RECORDING", Tr::RECORDING_MODE), activeMode == ScriptingModeEnum::RECORDING))
+        {
+            setMode(ScriptingModeEnum::RECORDING);
+        }
+        if(ImGui::Selectable(TR_ID("TRACKING", Tr::TRACKING_MODE), activeMode == ScriptingModeEnum::TRACKING))
+        {
+            setMode(ScriptingModeEnum::TRACKING);
+        }
+        ImGui::EndCombo();
     }
-    OFS::Tooltip("Scripting mode");
+    OFS::Tooltip(TR(SCRIPTING_MODE));
+
     impl->DrawModeSettings();
 
     ImGui::Spacing();
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
     ImGui::Spacing();
 
-    if (ImGui::Combo("##OverlayMode", (int*)&activeOverlay,
-        "Frame\0"
-        "Tempo\0"
-        "Tracking\0"
-        "None\0"
-        "\0")) {
-        setOverlay(activeOverlay);
+    if(ImGui::BeginCombo("##OverlayMode", OverlayModeToString(activeOverlay), ImGuiComboFlags_None))
+    {
+        if(ImGui::Selectable(TR_ID("FRAME_OVERLAY", Tr::FRAME_OVERLAY), activeOverlay == ScriptingOverlayModes::FRAME))
+        {
+            setOverlay(ScriptingOverlayModes::FRAME);
+        }
+        if(ImGui::Selectable(TR_ID("TEMPO_OVERLAY", Tr::TEMPO_OVERLAY), activeOverlay == ScriptingOverlayModes::TEMPO))
+        {
+            setOverlay(ScriptingOverlayModes::TEMPO);
+        }
+        if(ImGui::Selectable(TR_ID("TRACKING_OVERLAY", Tr::TRACKING_OVERLAY), activeOverlay == ScriptingOverlayModes::TRACKING))
+        {
+            setOverlay(ScriptingOverlayModes::TRACKING);
+        }
+        if(ImGui::Selectable(TR_ID("EMPTY_OVERLAY", Tr::EMPTY_OVERLAY), activeOverlay == ScriptingOverlayModes::EMPTY))
+        {
+            setOverlay(ScriptingOverlayModes::EMPTY);
+        }
+        ImGui::EndCombo();
     }
-    OFS::Tooltip("Scripting overlay");
-    app->scriptPositions.overlay->DrawSettings();
+
+    OFS::Tooltip(TR(SCRIPTING_OVERLAY));
+    app->scriptTimeline.overlay->DrawSettings();
     ImGui::PopItemWidth();
 
     ImGui::Spacing();
     ImGui::SeparatorEx(ImGuiSeparatorFlags_Horizontal);
     ImGui::Spacing();
-    ImGui::DragInt("Offset (ms)", &app->settings->data().action_insert_delay_ms);
-    OFS::Tooltip("Applies an offset to actions inserted while the video is playing.\n- : inserts earlier\n+ : inserts later");
+    ImGui::DragInt(TR(OFFSET_MS), &app->settings->data().action_insert_delay_ms);
+    OFS::Tooltip(TR(OFFSET_TOOLTIP));
     if (app->LoadedFunscripts().size() > 1) {
-        ImGui::Checkbox("Mirror mode", &app->settings->data().mirror_mode);
-        OFS::Tooltip("Mirrors add/edit/remove action across all loaded scripts.");
+        ImGui::Checkbox(TR(MIRROR_MODE), &app->settings->data().mirror_mode);
+        OFS::Tooltip(TR(MIRROR_MODE_TOOLTIP));
     }
     else {
         app->settings->data().mirror_mode = false;
@@ -103,20 +157,20 @@ void ScriptingMode::setOverlay(ScriptingOverlayModes mode) noexcept
 {
     activeOverlay = mode;
     auto app = OpenFunscripter::ptr;
-    auto timeline = &app->scriptPositions;
+    auto timeline = &app->scriptTimeline;
     switch (mode)
     {
     case ScriptingOverlayModes::FRAME:
-        app->scriptPositions.overlay = std::make_unique<FrameOverlay>(timeline);
+        app->scriptTimeline.overlay = std::make_unique<FrameOverlay>(timeline);
         break;
     case ScriptingOverlayModes::TEMPO:
-        app->scriptPositions.overlay = std::make_unique<TempoOverlay>(timeline);
+        app->scriptTimeline.overlay = std::make_unique<TempoOverlay>(timeline);
         break;
     case ScriptingOverlayModes::TRACKING_OVERLAY:
         app->scriptPositions.overlay = std::make_unique<ScriptTrackingOverlay>(timeline);
         break;
     case ScriptingOverlayModes::EMPTY:
-        app->scriptPositions.overlay = std::make_unique<EmptyOverlay>(timeline);
+        app->scriptTimeline.overlay = std::make_unique<EmptyOverlay>(timeline);
         break;
     default:
         break;
@@ -147,19 +201,19 @@ void ScriptingMode::addEditAction(FunscriptAction action) noexcept
 
 void ScriptingMode::NextFrame() noexcept
 {
-    OpenFunscripter::ptr->scriptPositions.overlay->nextFrame();
+    OpenFunscripter::ptr->scriptTimeline.overlay->nextFrame();
 }
 
 void ScriptingMode::PreviousFrame() noexcept
 {
-    OpenFunscripter::ptr->scriptPositions.overlay->previousFrame();
+    OpenFunscripter::ptr->scriptTimeline.overlay->previousFrame();
 }
 
 void ScriptingMode::update() noexcept
 {
     OFS_PROFILE(__FUNCTION__);
     impl->update();
-    OpenFunscripter::ptr->scriptPositions.overlay->update();
+    OpenFunscripter::ptr->scriptTimeline.overlay->update();
 }
 
 // dynamic top injection
@@ -167,18 +221,18 @@ void DynamicInjectionImpl::DrawModeSettings() noexcept
 {
     OFS_PROFILE(__FUNCTION__);
     ImGui::SliderFloat("##Target speed (units/s)", &targetSpeed, MinSpeed, MaxSpeed, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-    OFS::Tooltip("Target speed (units/s)");
+    OFS::Tooltip(TR(DI_TARGET_SPEED));
     targetSpeed = std::round(Util::Clamp(targetSpeed, MinSpeed, MaxSpeed));
 
     ImGui::SliderFloat("##Up/Down speed bias", &directionBias, -0.9f, 0.9f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-    OFS::Tooltip("Up/Down speed bias");
+    OFS::Tooltip(TR(DI_UP_DOWN_BIAS));
 
     ImGui::Columns(2, 0, false);
-    if (ImGui::RadioButton("Top", topBottomDirection == 1)) {
+    if (ImGui::RadioButton(TR(TOP), topBottomDirection == 1)) {
         topBottomDirection = 1;
     }
     ImGui::NextColumn();
-    if (ImGui::RadioButton("Bottom", topBottomDirection == -1)) {
+    if (ImGui::RadioButton(TR(BOTTOM), topBottomDirection == -1)) {
         topBottomDirection = -1;
     }
     ImGui::NextColumn();
@@ -207,23 +261,23 @@ void AlternatingImpl::DrawModeSettings() noexcept
     if (contextSensitive) {
         auto behind = ctx().GetPreviousActionBehind(std::round(app->player->getCurrentPositionSecondsInterp()) - 0.001f);
         if (behind) {
-            ImGui::TextDisabled("Next point: %s", behind->pos <= 50 ? "Top" : "Bottom");
+            ImGui::TextDisabled("%s: %s", TR(NEXT_POINT), behind->pos <= 50 ? TR(TOP) : TR(BOTTOM));
         }
         else {
-            ImGui::TextDisabled("Next point: Bottom");
+            ImGui::TextDisabled("%s: %s", TR(NEXT_POINT), TR(BOTTOM));
         }
     }
     else {
         if (fixedRangeEnabled) {
-            ImGui::TextDisabled("Next point is at %d.", nextPosition ? fixedBottom : fixedTop);
+            ImGui::TextDisabled(TR(NEXT_POINT_AT_FMT), nextPosition ? fixedBottom : fixedTop);
         }
         else {
-            ImGui::TextDisabled("Next point is %s.", nextPosition ? "inverted" : "not inverted");
+            ImGui::TextDisabled(TR(NEXT_POINT_IS_FMT), nextPosition ? TR(INVERTED) : TR(NOT_INVERTED));
         }
     }
-    ImGui::Checkbox("Fixed range", &fixedRangeEnabled);
-    ImGui::Checkbox("Context sensitive", &contextSensitive);
-    OFS::Tooltip("Alternates based on the previous action.");
+    ImGui::Checkbox(TR(FIXED_RANGE), &fixedRangeEnabled);
+    ImGui::Checkbox(TR(CONTEXT_SENSITIVE), &contextSensitive);
+    OFS::Tooltip(TR(CONTEXT_SENSITIVE_TOOLTIP));
     if (fixedRangeEnabled) {
         bool inputActive = false;
         auto& style = ImGui::GetStyle();
@@ -293,7 +347,7 @@ inline void RecordingImpl::singleAxisRecording() noexcept
     OFS_PROFILE(__FUNCTION__);
     auto app = OpenFunscripter::ptr;
     uint32_t frameEstimate = app->player->getCurrentFrameEstimate();
-    app->scriptPositions.RecordingBuffer[frameEstimate]
+    app->scriptTimeline.RecordingBuffer[frameEstimate]
         = std::make_pair(FunscriptAction(app->player->getCurrentPositionSecondsInterp(), currentPosY), FunscriptAction());
     app->simulator.positionOverride = currentPosY;
 }
@@ -304,7 +358,7 @@ inline void RecordingImpl::twoAxisRecording() noexcept
     auto app = OpenFunscripter::ptr;
     uint32_t frameEstimate = app->player->getCurrentFrameEstimate();
     float atS = app->player->getCurrentPositionSecondsInterp();
-    app->scriptPositions.RecordingBuffer[frameEstimate]
+    app->scriptTimeline.RecordingBuffer[frameEstimate]
         = std::make_pair(FunscriptAction(atS, currentPosX), FunscriptAction(atS, 100 - currentPosY));
     app->sim3D->RollOverride = currentPosX;
     app->sim3D->PitchOverride = 100 - currentPosY;
@@ -318,7 +372,7 @@ inline void RecordingImpl::finishSingleAxisRecording() noexcept
     if (app->settings->data().mirror_mode) {
         app->undoSystem->Snapshot(StateType::GENERATE_ACTIONS);
         for (auto&& script : app->LoadedFunscripts()) {
-            for (auto&& actionP : app->scriptPositions.RecordingBuffer) {
+            for (auto&& actionP : app->scriptTimeline.RecordingBuffer) {
                 auto& action = actionP.first;
                 if (action.pos >= 0) {
                     action.atS += offsetTime;
@@ -329,7 +383,7 @@ inline void RecordingImpl::finishSingleAxisRecording() noexcept
     }
     else {
         app->undoSystem->Snapshot(StateType::GENERATE_ACTIONS, app->ActiveFunscript());
-        for (auto&& actionP : app->scriptPositions.RecordingBuffer) {
+        for (auto&& actionP : app->scriptTimeline.RecordingBuffer) {
             auto& action = actionP.first;
             if (action.pos >= 0) {
                 action.atS += offsetTime;
@@ -337,7 +391,7 @@ inline void RecordingImpl::finishSingleAxisRecording() noexcept
             }
         }
     }
-    app->scriptPositions.RecordingBuffer.clear();
+    app->scriptTimeline.RecordingBuffer.clear();
 }
 
 inline void RecordingImpl::finishTwoAxisRecording() noexcept
@@ -350,7 +404,7 @@ inline void RecordingImpl::finishTwoAxisRecording() noexcept
     int32_t pitchIdx = app->sim3D->pitchIndex;
     if (rollIdx > 0 && rollIdx < app->LoadedFunscripts().size()) {
         auto& script = app->LoadedFunscripts()[rollIdx];
-        for (auto&& actionP : app->scriptPositions.RecordingBuffer) {
+        for (auto&& actionP : app->scriptTimeline.RecordingBuffer) {
             auto& actionX = actionP.first;
             if (actionX.pos >= 0) {
                 actionX.atS += offsetTime;
@@ -360,7 +414,7 @@ inline void RecordingImpl::finishTwoAxisRecording() noexcept
     }
     if (pitchIdx > 0 && pitchIdx < app->LoadedFunscripts().size()) {
         auto& script = app->LoadedFunscripts()[pitchIdx];
-        for (auto&& actionP : app->scriptPositions.RecordingBuffer) {
+        for (auto&& actionP : app->scriptTimeline.RecordingBuffer) {
             auto& actionY = actionP.second;
             if (actionY.pos >= 0) {
                 actionY.atS += offsetTime;
@@ -368,7 +422,7 @@ inline void RecordingImpl::finishTwoAxisRecording() noexcept
             }
         }
     }
-    app->scriptPositions.RecordingBuffer.clear();
+    app->scriptTimeline.RecordingBuffer.clear();
 }
 
 // recording
@@ -438,22 +492,40 @@ void RecordingImpl::ControllerAxisMotion(SDL_Event& ev)
     }
 }
 
+inline static const char* RecordingModeToString(RecordingImpl::RecordingMode mode) noexcept
+{
+    switch(mode)
+    {
+        case RecordingImpl::RecordingMode::Controller: return TR(CONTROLLER);
+        case RecordingImpl::RecordingMode::Mouse: return TR(MOUSE);
+    }
+    return "";
+}
+
 void RecordingImpl::DrawModeSettings() noexcept
 {
     OFS_PROFILE(__FUNCTION__);
     auto app = OpenFunscripter::ptr;
 
-    ImGui::Combo("Mode", (int*)&activeMode,
-        "Mouse\0"
-        "Controller\0"
-        "\0");
+    if(ImGui::BeginCombo(TR_ID("MODE", Tr::MODE), RecordingModeToString(activeMode), ImGuiComboFlags_None))
+    {
+        if(ImGui::Selectable(TR(MOUSE), activeMode == RecordingMode::Mouse))
+        {
+            activeMode = RecordingMode::Mouse;
+        }
+        if(ImGui::Selectable(TR(CONTROLLER), activeMode == RecordingMode::Controller))
+        {
+            activeMode = RecordingMode::Controller;
+        }
+        ImGui::EndCombo();
+    }
 
     switch (activeMode) {
         case RecordingMode::Controller:
         {
-            ImGui::TextUnformatted("Controller deadzone");
-            ImGui::SliderInt("Deadzone", &ControllerDeadzone, 0, std::numeric_limits<int16_t>::max());
-            ImGui::Checkbox("Center", &controllerCenter);
+            ImGui::TextUnformatted(TR(CONTROLLER_DEADZONE));
+            ImGui::SliderInt(TR(DEADZONE), &ControllerDeadzone, 0, std::numeric_limits<int16_t>::max());
+            ImGui::Checkbox(TR(CENTER), &controllerCenter);
             if (controllerCenter) {
                 currentPosX = Util::Clamp<int32_t>(50.f + (50.f * valueX), 0, 100);
                 currentPosY = Util::Clamp<int32_t>(50.f + (50.f * valueY), 0, 100);
@@ -464,8 +536,8 @@ void RecordingImpl::DrawModeSettings() noexcept
             }
             if (!recordingActive) {
                 ImGui::SameLine();
-                ImGui::Checkbox("Two axes", &twoAxesMode);
-                OFS::Tooltip("Recording pitch & roll at once.\nUsing Simulator 3D settings.\nOnly works with a controller.");
+                ImGui::Checkbox(TR(TWO_AXES), &twoAxesMode);
+                OFS::Tooltip(TR(TWO_AXES_TOOLTIP));
             }
             break;
         }
@@ -478,13 +550,13 @@ void RecordingImpl::DrawModeSettings() noexcept
         }
     }
 
-    ImGui::Checkbox("Invert", &inverted); ImGui::SameLine(); ImGui::Checkbox("Record on play", &automaticRecording);
+    ImGui::Checkbox(TR(INVERT), &inverted); ImGui::SameLine(); ImGui::Checkbox(TR(RECORD_ON_PLAY), &automaticRecording);
     if (inverted) { 
         currentPosX = 100 - currentPosX;
         currentPosY = 100 - currentPosY; 
     }
     if (twoAxesMode) {
-        ImGui::TextUnformatted("X / Y");
+        ImGui::TextUnformatted(TR(TWO_AXES_AXES));
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::SliderInt("##PosX", &currentPosX, 0, 100);
         ImGui::SliderInt("##PosY", &currentPosY, 0, 100);
@@ -492,7 +564,7 @@ void RecordingImpl::DrawModeSettings() noexcept
     }
     else
     {
-        ImGui::TextUnformatted("Position"); 
+        ImGui::TextUnformatted(TR(POSITION)); 
         ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
         ImGui::SliderInt("##Pos", &currentPosY, 0, 100);
         ImGui::PopItemFlag();
@@ -517,12 +589,12 @@ void RecordingImpl::DrawModeSettings() noexcept
 
     if (recordingActive && playing) {
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(0, 255, 0, 255));
-        ImGui::TextUnformatted("Recording active");
+        ImGui::TextUnformatted(TR(RECORDING_ACTIVE));
         ImGui::PopStyleColor();
     }
     else {
         ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 0, 0, 255));
-        ImGui::TextUnformatted("Recording paused");
+        ImGui::TextUnformatted(TR(RECORDING_PAUSED));
         ImGui::PopStyleColor();
     }   
 }
@@ -538,8 +610,8 @@ void RecordingImpl::update() noexcept
     else if (recordingJustStarted) {
         recordingJustStarted = false;
         recordingActive = true;
-        app->scriptPositions.RecordingBuffer.clear();
-        app->scriptPositions.RecordingBuffer.resize(app->player->getTotalNumFrames(),
+        app->scriptTimeline.RecordingBuffer.clear();
+        app->scriptTimeline.RecordingBuffer.resize(app->player->getTotalNumFrames(),
             std::make_pair(FunscriptAction(), FunscriptAction()));
     }
     else if (recordingJustStopped) {

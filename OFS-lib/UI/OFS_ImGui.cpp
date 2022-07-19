@@ -29,18 +29,6 @@ void OFS::ImageWithId(ImGuiID id, ImTextureID user_texture_id, const ImVec2& siz
     }
 }
 
-bool OFS::GamepadContextMenu() noexcept
-{
-    ImGuiWindow* window = GImGui->CurrentWindow;
-    if (window->SkipItems)
-        return false;
-    ImGuiID id = GImGui->LastItemData.ID; // If user hasn't passed an ID, we can use the LastItemID. Using LastItemID as a Popup ID won't conflict!
-    IM_ASSERT(id != 0);                                                  // You cannot pass a NULL str_id if the last item has no identifier (e.g. a Text() item)
-    if (ImGui::IsNavInputTest(ImGuiNavInput_Input, ImGuiInputReadMode_Pressed) && ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup))
-        ImGui::OpenPopupEx(id, ImGuiPopupFlags_None);
-    return ImGui::BeginPopupEx(id, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoSavedSettings);
-}
-
 bool OFS::Spinner(const char* label, float radius, int thickness, const ImU32& color) noexcept
 {
     ImGuiWindow* window = ImGui::GetCurrentWindow();
@@ -121,7 +109,7 @@ static bool BoundedSliderScalar(const char* label, ImGuiDataType data_type, Numb
 
     const bool temp_input_allowed = (flags & ImGuiSliderFlags_NoInput) == 0;
     ItemSize(total_bb, style.FramePadding.y);
-    if (!ItemAdd(total_bb, id, &frame_bb, temp_input_allowed ? ImGuiItemAddFlags_Focusable : 0))
+    if (!ItemAdd(total_bb, id, &frame_bb, temp_input_allowed ? ImGuiItemFlags_Inputable : 0))
         return false;
 
     // Default format string when passing NULL
@@ -135,15 +123,15 @@ static bool BoundedSliderScalar(const char* label, ImGuiDataType data_type, Numb
     bool temp_input_is_active = temp_input_allowed && TempInputIsActive(id);
     if (!temp_input_is_active)
     {
-        const bool focus_requested = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags_Focused) != 0;
+        const bool input_requested_by_tabbing = temp_input_allowed && (g.LastItemData.StatusFlags & ImGuiItemStatusFlags_FocusedByTabbing) != 0;
         const bool clicked = (hovered && g.IO.MouseClicked[0]);
-        if (focus_requested || clicked || g.NavActivateId == id || g.NavInputId == id)
+        if (input_requested_by_tabbing || clicked || g.NavActivateId == id || g.NavActivateInputId == id)
         {
             SetActiveID(id, window);
             SetFocusID(id, window);
             FocusWindow(window);
             g.ActiveIdUsingNavDirMask |= (1 << ImGuiDir_Left) | (1 << ImGuiDir_Right);
-            if (temp_input_allowed && (focus_requested || (clicked && g.IO.KeyCtrl) || g.NavInputId == id))
+            if (temp_input_allowed && (input_requested_by_tabbing || (clicked && g.IO.KeyCtrl) || g.NavActivateInputId == id))
                 temp_input_is_active = true;
         }
     }

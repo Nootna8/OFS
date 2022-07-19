@@ -139,7 +139,7 @@ void OFS_Project::Clear() noexcept
 
 void OFS_Project::LoadedSuccessful() noexcept
 {
-	FUN_ASSERT(!Loaded, "was already loaded");
+	if(Loaded) return;
 	Loaded = true;
 	Metadata.title = Util::PathFromString(LastPath)
 		.replace_extension("")
@@ -289,11 +289,16 @@ bool OFS_Project::Import(const std::string& path) noexcept
 	OFS_PROFILE(__FUNCTION__);
 	Loaded = false;
 	auto basePath = Util::PathFromString(path);
-	LastPath = basePath.replace_extension("").u8string() + OFS_Project::Extension;
-	if (Util::FileExists(LastPath)) {
-		// there already exists a project file 
-		// and we don't want to overwrite it
-		return false;
+	LastPath =
+		basePath.replace_extension("").u8string() + OFS_Project::Extension;
+	if (Util::FileExists(LastPath))
+	{
+		LOGF_INFO(
+			"There's already a project file for \"%s\". opening that "
+			"instead...",
+			path.c_str());
+		auto importPath = LastPath;
+		return this->Load(importPath);
 	}
 
 	basePath = Util::PathFromString(path);
@@ -450,12 +455,25 @@ void OFS_Project::ExportClips(const std::string& outputDirectory) noexcept
 				};
 				struct subprocess_s proc;
 				if(subprocess_create(args.data(), subprocess_option_no_window, &proc) != 0) {
-					assert(false);
+					delete exportData;
+					return 0;
 				}
-				else {
-					int return_code;
-					subprocess_join(&proc, &return_code);
+
+				if(proc.stdout_file) 
+				{
+					fclose(proc.stdout_file);
+					proc.stdout_file = nullptr;
 				}
+
+				if(proc.stderr_file)
+				{
+					fclose(proc.stderr_file);
+					proc.stderr_file = nullptr;
+				}
+
+				int return_code;
+				subprocess_join(&proc, &return_code);
+				subprocess_destroy(&proc);
 			}
 			i++;
 		}
@@ -468,7 +486,7 @@ void OFS_Project::ExportClips(const std::string& outputDirectory) noexcept
 
 	auto task = std::make_unique<BlockingTaskData>();
 	task->TaskThreadFunc = blockingTask;
-	task->TaskDescription = "Exporting clips";
+	task->TaskDescription = TR(TASK_EXPORTING_CLIPS);
 	task->User = taskData;
 	OpenFunscripter::ptr->blockingTask.DoTask(std::move(task));
 }
@@ -487,23 +505,23 @@ bool OFS_Project::HasUnsavedEdits() noexcept
 void OFS_Project::ShowProjectWindow(bool* open) noexcept
 {
 	if (*open) {
-		ImGui::OpenPopup("Project");
+		ImGui::OpenPopup(TR_ID("PROJECT", Tr::PROJECT));
 	}
 
-	if (ImGui::BeginPopupModal("Project", open, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize))
+	if (ImGui::BeginPopupModal(TR_ID("PROJECT", Tr::PROJECT), open, ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		OFS_PROFILE(__FUNCTION__);
 		auto app = OpenFunscripter::ptr;
 		ImGui::PushID(Metadata.title.c_str());
 		
-		ImGui::Text("Media: %s", MediaPath.c_str()); 
+		ImGui::Text("%s: %s", TR(MEDIA), MediaPath.c_str()); 
 		OFS::Tooltip(MediaPath.c_str());
 		ImGui::Separator();
 		ImGui::Spacing();
-		ImGui::TextDisabled("Scripts");
+		ImGui::TextDisabled(TR(SCRIPTS));
 		for (auto& script : Funscripts) {
 			if (ImGui::Button(script->Title.c_str(), ImVec2(-1.f, 0.f))) {
-				Util::SaveFileDialog("Change default location",
+				Util::SaveFileDialog(TR(CHANGE_DEFAULT_LOCATION),
 					script->Path(),
 					[&](auto result) {
 						if (!result.files.empty()) {
@@ -514,7 +532,7 @@ void OFS_Project::ShowProjectWindow(bool* open) noexcept
 						}
 					});
 			}
-			OFS::Tooltip("Change location");
+			OFS::Tooltip(TR(CHANGE_LOCATION));
 		}
 		ImGui::PopID();
 		ImGui::EndPopup();

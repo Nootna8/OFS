@@ -141,9 +141,11 @@ add_library(imgui STATIC ${IMGUI_SOURCES} ${IMGUI_HEADERS})
 target_include_directories(imgui PUBLIC "imgui/")
 target_compile_definitions(imgui PUBLIC "IMGUI_USE_STB_SPRINTF")
 target_include_directories(imgui PUBLIC "stb/")
-target_compile_definitions(imgui PUBLIC "IMGUI_DEFINE_MATH_OPERATORS")
-target_compile_definitions(imgui PUBLIC "IMGUI_DISABLE_OBSOLETE_FUNCTIONS")
+target_compile_definitions(imgui PUBLIC "IMGUI_DEFINE_MATH_OPERATORS=1")
+target_compile_definitions(imgui PUBLIC "IMGUI_DISABLE_OBSOLETE_FUNCTIONS=1")
+target_compile_definitions(imgui PUBLIC "IMGUI_DISABLE_OBSOLETE_KEYIO=1")
 #target_compile_definitions(imgui PUBLIC "IMGUI_DEBUG_PARANOID")
+target_compile_features(imgui PUBLIC cxx_std_17)
 
 # ================
 # = IMGUI_STDLIB =
@@ -162,11 +164,10 @@ set(SDL_RENDER OFF CACHE BOOL "" FORCE)
 set(SDL_SENSOR OFF CACHE BOOL "" FORCE)
 set(SDL_HAPTIC OFF CACHE BOOL "" FORCE)
 set(SDL_POWER OFF CACHE BOOL "" FORCE)
-set(LIBC ON CACHE BOOL "" FORCE)
-set(DIRECTX OFF CACHE BOOL "" FORCE)
-set(RENDER_D3D OFF CACHE BOOL "" FORCE)
-set(VIDEO_VULKAN OFF CACHE BOOL "" FORCE)
-set(VIDEO_VULKAN OFF CACHE BOOL "" FORCE)
+set(SDL_LIBC ON CACHE BOOL "" FORCE)
+set(SDL_DIRECTX OFF CACHE BOOL "" FORCE)
+set(SDL_RENDER_D3D OFF CACHE BOOL "" FORCE)
+set(SDL_VULKAN OFF CACHE BOOL "" FORCE)
 add_subdirectory("SDL2/")
 
 
@@ -212,10 +213,12 @@ target_include_directories(ImGuizmo PUBLIC "ImGuizmo/")
 target_link_libraries(ImGuizmo PUBLIC imgui)
 target_compile_features(ImGuizmo PRIVATE cxx_std_17)
 
-
-
 # =========================
 # = JackerTracker / LibJT =
 # =========================
 
 add_subdirectory("JackerTracker/")
+
+set(SOL2_LUA_VERSION "5.4" CACHE BOOL "" FORCE)
+set(SOL2_BUILD_LUA OFF CACHE BOOL "" FORCE)
+add_subdirectory("sol2/")
