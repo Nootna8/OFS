@@ -8,6 +8,7 @@
 enum ScriptingOverlayModes : int32_t {
 	FRAME,
 	TEMPO,
+	TRACKING_OVERLAY,
 	EMPTY,
 };
 

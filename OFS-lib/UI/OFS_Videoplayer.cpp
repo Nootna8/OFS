@@ -30,6 +30,21 @@ static void onMpvRenderUpdate(void* ctx) noexcept
 	EventSystem::PushEvent(VideoEvents::WakeupOnMpvRenderUpdate, ctx);
 }
 
+VideoplayerWindow::VideoplayerWindow()
+{
+	// rectUtil.SetMouseTranslation(std::bind(&VideoplayerWindow::TranslateMouse, this, std::placeholders::_1));
+}
+
+ImVec2 VideoplayerWindow::TranslateMouse(ImVec2 pos)
+{
+	ImVec2 newPos = pos - viewportPos - windowPos - settings.videoPos;
+	ImVec2 vidSize = ImVec2(VideoWidth(), VideoHeight());
+	ImVec2 vidScale = vidSize / videoDrawSize;
+	newPos = newPos * vidScale / vidSize;
+
+	return newPos;
+}
+
 void VideoplayerWindow::MpvEvents(SDL_Event& ev) noexcept
 {
 	if (ev.user.data1 != this) return;
@@ -490,6 +505,7 @@ void VideoplayerWindow::draw2dVideo(ImDrawList* draw_list) noexcept
 {
 	OFS_PROFILE(__FUNCTION__);
 	ImVec2 videoSize(MpvData.videoWidth, MpvData.videoHeight);
+	ImVec2 videoSizeOriginal = videoSize;
 	ImVec2 dst = ImGui::GetContentRegionAvail();
 	baseScaleFactor = std::min(dst.x / videoSize.x, dst.y / videoSize.y);
 	videoSize.x *= baseScaleFactor;
@@ -538,6 +554,7 @@ void VideoplayerWindow::draw2dVideo(ImDrawList* draw_list) noexcept
 
 	playerViewport = ImGui::GetCurrentWindowRead()->Viewport;
 	OFS::ImageWithId(videoImageId, (void*)(intptr_t)renderTexture, videoSize, uv0, uv1);
+
 	videoRightClickMenu();
 }
 
@@ -627,6 +644,10 @@ void VideoplayerWindow::DrawVideoPlayer(bool* open, bool* draw_video) noexcept
 		}
 	}
 	windowPos = ImGui::GetWindowPos() - viewportPos;
+
+	for (auto& r : renderCallbacks)
+		r();
+
 	ImGui::End();
 }
 

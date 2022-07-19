@@ -9,6 +9,8 @@
 #include "OFS_Shader.h"
 
 #include <string>
+#include <functional>
+
 #include "SDL_events.h"
 
 struct mpv_handle;
@@ -38,6 +40,7 @@ public:
 class VideoplayerWindow
 {
 public:
+	VideoplayerWindow();
 	~VideoplayerWindow();
 private:
 	mpv_handle* mpv;
@@ -46,7 +49,6 @@ private:
 	uint32_t framebufferObj = 0;
 	uint32_t renderTexture = 0;
 	char tmpBuf[32];
-
 	std::unique_ptr<VrShader> vrShader;
 	ImGuiViewport* playerViewport;
 	
@@ -129,8 +131,10 @@ private:
 	void showText(const char* text) noexcept;
 	void clearLoop() noexcept;
 public:
+	ImVec2 TranslateMouse(ImVec2 pos);
 	static constexpr const char* PlayerId = "Player";
 	ImDrawCallback OnRenderCallback = nullptr;
+	std::vector<std::function<void(void)>> renderCallbacks;
 
 	struct OFS_VideoPlayerSettings {
 		ImVec2 currentVrRotation = ImVec2(0.5f, -0.5f);
@@ -189,6 +193,33 @@ public:
 
 	bool setup(bool force_hw_decoding);
 	void DrawVideoPlayer(bool* open, bool* draw_video) noexcept;
+
+	struct ViewPortConfig
+	{
+		ImVec2 videoDrawSize;
+		ImVec2 viewportPos;
+		ImVec2 windowPos;
+		ImVec2 videoSize;
+		ImVec2 videoPos;
+		ImVec2 videoTranslation;
+	};
+
+	ViewPortConfig GetViewPort()
+	{
+		ViewPortConfig ret = {
+			videoDrawSize,
+			viewportPos,
+			windowPos,
+			{
+				(float)MpvData.videoWidth,
+				(float)MpvData.videoHeight
+			},
+			settings.videoPos,
+			settings.currentTranslation
+		};
+
+		return ret;
+	}
 
 	inline void resetTranslationAndZoom() noexcept {
 		if (settings.LockedPosition) return;

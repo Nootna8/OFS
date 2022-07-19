@@ -69,6 +69,7 @@ public:
 	ImVec2 hoveredCanvasSize;
 
 	class UndoSystem* undoSystem = nullptr;
+	float GetVisibleTime() { return visibleTime; }
 private:
 	void mousePressed(SDL_Event& ev) noexcept;
 	void mouseReleased(SDL_Event& ev) noexcept;

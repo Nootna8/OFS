@@ -481,7 +481,7 @@ void ScriptTimeline::ShowScriptPositions(bool* open, float currentTime, float du
 
 
 		// right click context menu
-		if (ImGui::BeginPopupContextItem(script.Title.c_str()))
+		if (ImGui::BeginPopupContextItem(script.Title.c_str(), ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup))
 		{
 			if (ImGui::BeginMenu("Scripts")) {
 				for (auto&& script : *Scripts) {

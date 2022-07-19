@@ -9,6 +9,8 @@
 #include "OFS_ImGui.h"
 #include "OFS_Simulator3D.h"
 
+#include "JT_Mode.h"
+
 ScripingModeBaseImpl::ScripingModeBaseImpl()
 {
 }
@@ -29,6 +31,7 @@ void ScriptingMode::setup()
     modes[ScriptingModeEnum::ALTERNATING] = std::make_unique<AlternatingImpl>();
     modes[ScriptingModeEnum::RECORDING] = std::make_unique<RecordingImpl>();
     modes[ScriptingModeEnum::DYNAMIC_INJECTION] = std::make_unique<DynamicInjectionImpl>();
+	modes[ScriptingModeEnum::TRACKING] = std::make_unique<JTTrackingMode>();
 
     setMode(ScriptingModeEnum::DEFAULT_MODE);
     setOverlay(ScriptingOverlayModes::FRAME);
@@ -46,6 +49,7 @@ void ScriptingMode::DrawScriptingMode(bool* open) noexcept
         "Alternating\0"
         "Dynamic injection\0"
         "Recording\0"
+		"Tracking\0"
         "\0")) {
         setMode(activeMode);
     }
@@ -59,6 +63,7 @@ void ScriptingMode::DrawScriptingMode(bool* open) noexcept
     if (ImGui::Combo("##OverlayMode", (int*)&activeOverlay,
         "Frame\0"
         "Tempo\0"
+        "Tracking\0"
         "None\0"
         "\0")) {
         setOverlay(activeOverlay);
@@ -106,6 +111,9 @@ void ScriptingMode::setOverlay(ScriptingOverlayModes mode) noexcept
         break;
     case ScriptingOverlayModes::TEMPO:
         app->scriptPositions.overlay = std::make_unique<TempoOverlay>(timeline);
+        break;
+    case ScriptingOverlayModes::TRACKING_OVERLAY:
+        app->scriptPositions.overlay = std::make_unique<ScriptTrackingOverlay>(timeline);
         break;
     case ScriptingOverlayModes::EMPTY:
         app->scriptPositions.overlay = std::make_unique<EmptyOverlay>(timeline);

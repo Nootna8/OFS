@@ -21,6 +21,7 @@
 #include "asap.h"
 #include "glad/gl.h"
 
+
 // FIX: Add type checking to the deserialization. It does crash if a field type doesn't match.
 // TODO: Use ImGui tables API in keybinding UI
 // TODO: extend "range extender" functionality ( only extend bottom/top, range reducer )
@@ -206,6 +207,7 @@ bool OpenFunscripter::setup(int argc, char* argv[])
     IO = std::make_unique<OFS_AsyncIO>();
     IO->Init();
     LoadedProject = std::make_unique<OFS_Project>();
+	
     player = std::make_unique<VideoplayerWindow>();
     if (!player->setup(settings->data().force_hw_decoding)) {
         LOG_ERROR("Failed to init video player");
@@ -258,6 +260,7 @@ bool OpenFunscripter::setup(int argc, char* argv[])
     sim3D->setup();
 
     // callback that renders the simulator right after the video
+    
     player->OnRenderCallback = [](const ImDrawList * parent_list, const ImDrawCmd * cmd) {
         auto app = OpenFunscripter::ptr;
         if (app->settings->data().show_simulator_3d) {
@@ -1651,6 +1654,76 @@ void OpenFunscripter::exitApp(bool force) noexcept
     }
 }
 
+bool OpenFunscripter::BookmarkPopupItems(OFS_ScriptSettings::Bookmark* bookmarkStart, OFS_ScriptSettings::Bookmark* bookmarkEnd) noexcept
+{
+    bool ret = false;
+
+    ImGui::TextDisabled(bookmarkStart->name.c_str());
+
+    if (bookmarkEnd)
+    {
+        if (ImGui::MenuItem("Jump start")) {
+            player->setPositionExact(bookmarkStart->atS);
+        }
+
+        if (ImGui::MenuItem("Jump end")) {
+            player->setPositionExact(bookmarkEnd->atS);
+        }
+    }
+    else
+    {
+        if (ImGui::MenuItem("Jump here")) {
+            player->setPositionExact(bookmarkStart->atS);
+        }
+    }
+
+    if (ImGui::MenuItem("Delete")) {
+        auto& scriptSettings = LoadedProject->Settings;
+        auto& vec = scriptSettings.Bookmarks;
+
+        if (bookmarkEnd) {
+            vec.erase(std::remove_if(vec.begin(), vec.end(), [bookmarkEnd](auto& b) {
+                return &b == bookmarkEnd;
+                }), vec.end());
+        }
+        vec.erase(std::remove_if(vec.begin(), vec.end(), [bookmarkStart](auto& b) {
+            return &b == bookmarkStart;
+            }), vec.end());
+        ret = true;
+    }
+
+    return ret;
+}
+
+bool OpenFunscripter::BookmarkPopup(ImVec2 p1, ImVec2 p2, bool& hover, ImGuiID id, OFS_ScriptSettings::Bookmark* bookmarkStart, OFS_ScriptSettings::Bookmark* bookmarkEnd) noexcept
+{
+    ImRect rect(p1, p2);
+    ImRect oldSize = ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+
+    ImGui::PushID(id);
+    ImGui::ItemSize(rect);
+    ImGui::ItemAdd(rect, id);
+
+    bool pressed;
+    ImGui::ButtonBehavior(rect, id, &hover, &pressed);
+
+    if (pressed)
+        player->setPositionExact(bookmarkStart->atS);
+
+    bool ret = false;
+
+    if (ImGui::BeginPopupContextItem())
+    {
+        ret = BookmarkPopupItems(bookmarkStart, bookmarkEnd);
+        ImGui::EndPopup();
+    }
+
+    ImGui::PopID();
+    ImGui::ItemSize(oldSize);
+
+    return ret;
+}
+
 void OpenFunscripter::step() noexcept {
     OFS_BEGINPROFILING();
     {
@@ -1718,6 +1791,7 @@ void OpenFunscripter::step() noexcept {
                     constexpr float rectWidth = 7.f;
                     const float fontSize = ImGui::GetFontSize();
                     const uint32_t textColor = ImGui::ColorConvertFloat4ToU32(style.Colors[ImGuiCol_Text]);
+                    bool hover;
 
                     // if an end_marker appears before a start marker we render it as if was a regular bookmark
                     if (bookmark.type == OFS_ScriptSettings::Bookmark::BookmarkType::START_MARKER) {
@@ -1729,11 +1803,21 @@ void OpenFunscripter::step() noexcept {
                             ImVec2 next_p1((frame_bb.Min.x + (frame_bb.GetWidth() * (nextBookmarkPtr->atS / player->getDuration()))) - (rectWidth / 2.f), frame_bb.Min.y);
                             ImVec2 next_p2(next_p1.x + rectWidth, frame_bb.Min.y + frame_bb.GetHeight() + (style.ItemSpacing.y * 3.0f));
 
+                            ImVec2 rectP1 = p1 + ImVec2(rectWidth / 2.f, 0);
+                            ImVec2 rectP2 = next_p2 - ImVec2(rectWidth / 2.f, -fontSize);
+
+                            if (BookmarkPopup(rectP1 + ImVec2(0, frame_bb.GetHeight() + 5), rectP2, hover, ImGui::GetID("bmbutton"+i), &bookmark, nextBookmarkPtr))
+                                break;
+
                             if (show_text) {
+                                auto color = IM_COL32(255, 0, 0, 100);
+                                if (hover)
+                                    color = IM_COL32(255, 0, 0, 150);
+                                
                                 draw_list->AddRectFilled(
-                                    p1 + ImVec2(rectWidth / 2.f, 0),
-                                    next_p2 - ImVec2(rectWidth / 2.f, -fontSize),
-                                    IM_COL32(255, 0, 0, 100),
+                                    rectP1,
+                                    rectP2,
+                                    color,
                                     8.f);
                             }
 
@@ -1756,7 +1840,14 @@ void OpenFunscripter::step() noexcept {
                     ImVec2 p1((frame_bb.Min.x + (frame_bb.GetWidth() * (bookmark.atS / player->getDuration()))) - (rectWidth / 2.f), frame_bb.Min.y);
                     ImVec2 p2(p1.x + rectWidth, frame_bb.Min.y + frame_bb.GetHeight() + (style.ItemSpacing.y * 3.0f));
 
-                    draw_list->AddRectFilled(p1, p2, ImColor(style.Colors[ImGuiCol_Text]), 8.f);
+                    if (BookmarkPopup(p1, p2, hover, ImGui::GetID("bmmarker"+i), &bookmark, nullptr))
+                        break;
+
+                    auto color = style.Colors[ImGuiCol_Text];
+                    if (hover)
+                        color.w -= 0.4;
+
+                    draw_list->AddRectFilled(p1, p2, ImColor(color), 8.f);
 
                     if (show_text) {
                         auto size = ImGui::CalcTextSize(bookmark.name.c_str());
@@ -2124,6 +2215,10 @@ void OpenFunscripter::removeAction(FunscriptAction action) noexcept
 
 void OpenFunscripter::removeAction() noexcept
 {
+    // The overlay already handeled the delete
+    if (scriptPositions.overlay->HandleDelete())
+        return;
+
     OFS_PROFILE(__FUNCTION__);
     if (settings->data().mirror_mode && !ActiveFunscript()->HasSelection()) {
         undoSystem->Snapshot(StateType::REMOVE_ACTION);

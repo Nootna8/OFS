@@ -5,6 +5,7 @@ set(OPEN_FUNSCRIPTER_SOURCES
   "OpenFunscripter.cpp"
   "OFS_ScriptingMode.cpp"
   "OFS_Project.cpp"
+  "JT_Mode.cpp"
   
   "Funscript/OFS_ScriptSettings.cpp"
   

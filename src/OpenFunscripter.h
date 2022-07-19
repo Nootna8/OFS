@@ -101,6 +101,7 @@ private:
 	void saveHeatmap(const char* path, int width, int height);
 	void updateTitle() noexcept;
 
+	void removeActionButton();
 	void removeAction(FunscriptAction action) noexcept;
 	void removeAction() noexcept;
 	void addEditAction(int pos) noexcept;
@@ -189,6 +190,9 @@ public:
 	}
 	void Undo() noexcept;
 	void Redo() noexcept;
+
+	bool BookmarkPopup(ImVec2 p1, ImVec2 p2, bool& hover, ImGuiID id, OFS_ScriptSettings::Bookmark* bookmarkStart, OFS_ScriptSettings::Bookmark* bookmarkEnd) noexcept;
+	bool BookmarkPopupItems(OFS_ScriptSettings::Bookmark* bookmarkStart, OFS_ScriptSettings::Bookmark* bookmarkEnd) noexcept;
 };
 
 template<typename OnCloseAction>

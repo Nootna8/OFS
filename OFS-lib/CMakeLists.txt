@@ -68,6 +68,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 	glm
 	ImGuizmo
 	bitsery
+	LibJT
 
 	EASTL
 	EAStdC

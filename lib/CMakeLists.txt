@@ -206,7 +206,16 @@ endif()
 # ============
 file (GLOB ImGuizmo_SOURCES ImGuizmo/*.cpp)
 file (GLOB ImGuizmo_HEADERS ImGuizmo/*.h)
+
 add_library(ImGuizmo STATIC ${ImGuizmo_SOURCES} ${ImGuizmo_HEADERS})
 target_include_directories(ImGuizmo PUBLIC "ImGuizmo/")
 target_link_libraries(ImGuizmo PUBLIC imgui)
 target_compile_features(ImGuizmo PRIVATE cxx_std_17)
+
+
+
+# =========================
+# = JackerTracker / LibJT =
+# =========================
+
+add_subdirectory("JackerTracker/")

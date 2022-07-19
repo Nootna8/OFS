@@ -7,6 +7,9 @@
 
 #include "SDL_events.h"
 
+#include "Model/Model.h"
+#include "Reader/VideoReader.h"
+
 #include <memory>
 #include <array>
 
@@ -16,6 +19,7 @@ enum ScriptingModeEnum {
 	ALTERNATING,
 	DYNAMIC_INJECTION,
 	RECORDING,
+	TRACKING,
 	COUNT
 };
 
@@ -118,6 +122,8 @@ public:
 	virtual void update() noexcept override;
 	virtual void finish() noexcept override;
 };
+
+
 
 class OpenFunscripter;
 class ScriptingMode {

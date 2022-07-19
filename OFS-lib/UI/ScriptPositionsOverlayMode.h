@@ -44,6 +44,7 @@ public:
 	BaseOverlay(class ScriptTimeline* timeline) noexcept;
 	virtual ~BaseOverlay() noexcept {}
 	virtual void DrawSettings() noexcept;
+	virtual bool HandleDelete() noexcept { return false; };
 
 	virtual void update() noexcept;
 	virtual void DrawScriptPositionContent(const OverlayDrawingCtx& ctx) noexcept {}
